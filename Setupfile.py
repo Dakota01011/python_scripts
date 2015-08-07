@@ -1,6 +1,6 @@
 #!/pkg/.site/pkgs10/OSS-python-/3.4.1/x86_64-linux/bin/python
 
-import sys, os, re
+import sys, os, re, codecs
 # ==============ULP1 Specific setup====================
 ## From ULP1 Project setup env scripts
 LOGFILE = "SOC_QUERY.log"
@@ -8,6 +8,7 @@ PROJECT = os.environ.get('MASKNAME')
 BSUB = 'bsub -K -P ' + os.environ.get('MASKNAME') + ' -G ' + os.environ.get('LSB_SUB_USER_GROUP') + ' -q normal -R rusage[mem=10000:swp=6000]'
 prevlinePattern = re.compile(r" *if \{\[file exists \$\{DesignName\}_edif.xdc\]\} \{ read_xdc \$\{DesignName\}_edif.xdc \}.*")
 linePattern = re.compile(r" *if \{\[file exists ../../../../constraints/pinloc_haps70.xdc\]\} \{ read_xdc ../../../../constraints/pinloc_haps70.xdc \}.*")
+hapsdirPattern = re.compile(r"(.*\.haps70)")
 
 def clean_syn():
 	print("__Deleting All Synplify Tool output files:__")
@@ -41,8 +42,8 @@ def do_syn():
 	return val
 
 def hack_constraints():
-	filein = open("./run_vivado_haps.tcl")
-	fileout = open("./newfile.tcl", 'w')
+	filein = codecs.open("./run_vivado_haps.tcl", 'r', 'cp1252')
+	fileout = codecs.open("./newfile.tcl", 'w', 'cp1252')
 	prevline = ""
 	for line in filein.readlines():
 		if prevlinePattern.match(prevline) and not linePattern.match(line):
@@ -54,7 +55,14 @@ def hack_constraints():
 
 def do_place_and_route():
 	print("__TOOL: Place & Route:__")
-	os.chdir(r"ulp1_test4.haps70")
+	os.system("dssc co -get ../../../constraints/pinloc_haps70.xdc")
+	os.system("chmod 755 ../../../constraints/pinloc_haps70.xdc")
+	dirlist = os.listdir()
+	for mydir in dirlist:
+		if hapsdirPattern.match(mydir):
+			matches = hapsdirPattern.match(mydir)
+			os.chdir(matches.group(1))
+			break
 	os.system("mkdir -p ./log_files")
 	hack_constraints()
 	os.system("mv -f ./newfile.tcl ./run_vivado_haps.tcl")
@@ -105,8 +113,12 @@ else:
 	print("                          	     Creates RUNS/<your_run>/synplify dir.")
 	print("                          	     Creates RUNS/<your_run>/identify dir.")
 	print("                          	     Creates RUNS/<your_run>/vivado dir.")
-	print("   clean_syn			=> Removes tool output files.")
+	print("   clean_syn				=> Removes tool output files.")
 	print("   get_design_files 		=> Runs soc query to gatehr design files.  Runs soc_query_parse.")
 	print("   create_project		=> Creates Synplify project based on create_proj.tcl")
-	print("   do_setup			=> clean syn > get_design_files > create_project")
+	print("   do_setup				=> clean syn > get_design_files > create_project")
+	print("   do_instr				=> Runs identify")
+	print("   do_syn				=> Runs synplify_pro synthesis")
+	print("   do_place_and_route	=> Runs vivado par")
+	print("   do_syn_and_par		=> do_syn > do_place_and_route")
 	print("----------------------------------------------------------------------------------------------")
