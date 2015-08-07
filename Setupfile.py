@@ -36,6 +36,11 @@ def create_project():
 	print("__Creating synplify .prj file, using add_file.tcl + project options:__")
 	os.system(BSUB + " synplify_pro -batch ../../../scripts/create_proj.tcl")
 
+def do_instr():
+	print("__TOOL: Instrument:__")
+	val = os.system(BSUB + " -J " + PROJECT + "_instr identify_instrumentor_shell -licensetype identinstrumentor_xilinx instr.tcl")
+	return val
+
 def do_syn():
 	print("__TOOL: Compile & Synthesize:__")
 	val = os.system(BSUB + " -J " + PROJECT + "_syn synplify_pro -batch ../../../scripts/run_syn.tcl")
@@ -92,8 +97,7 @@ elif option == "do_setup":
 	get_design_files()
 	create_project()
 elif option == "do_instr":
-	print("__TOOL: Instrument:__")
-	os.system(BSUB + " -J " + PROJECT + "_instr identify_instrumentor_shell -licensetype identinstrumentor_xilinx instr.tcl")
+	do_instr()
 elif option == "do_syn":
 	val = do_syn()
 	print("Exit code: " + repr(val))
@@ -106,6 +110,18 @@ elif option == "do_syn_and_par":
 		do_place_and_route()
 	else:
 		print("syn failed")
+elif option == "do_instr_syn_and_par":
+	instr_val = do_instr_syn_and_par()
+	if not instr_val:
+		print("instr finished, continuing with syn")
+		syn_val = do_syn()
+		if not syn_val:
+			print("syn finished, continuing with par")
+			do_place_and_route()
+		else:
+			print("syn failed")
+	else:
+		print("inst failed")
 else:
 	print()
 	print("----------SYNPLIFY.Makefile Targets:----------------------------------------------------------")
@@ -121,4 +137,5 @@ else:
 	print("   do_syn				=> Runs synplify_pro synthesis")
 	print("   do_place_and_route	=> Runs vivado par")
 	print("   do_syn_and_par		=> do_syn > do_place_and_route")
+	print("   do_instr_syn_and_par	=> do_instr > do_syn > do_place_and_route")
 	print("----------------------------------------------------------------------------------------------")
